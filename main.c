@@ -16,7 +16,10 @@ void enable_raw_mode(){
   atexit(disable_raw_mode);
   tcgetattr(STDIN_FILENO, &original_attributes);
   tcgetattr(STDIN_FILENO, &raw);
-  raw.c_lflag &= ~(ECHO | ICANON);
+  raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+  raw.c_oflag &= ~(OPOST);
+  raw.c_lflag &= ~(ECHO | ICANON | ECHONL | ISIG | IEXTEN);
+  raw.c_cflag |= CS8;
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
@@ -28,8 +31,8 @@ int main(int argc, char *argv[])
   // ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
   // printf("%u, %u\n", w.ws_row, w.ws_col);
   char input;
-  while (read(STDIN_FILENO, &input, 1) == 1) {
-    printf("Read: %c\n", input);
+  while (read(STDIN_FILENO, &input, 1) == 1 && input != 'q') {
+    printf("Read: %u\r\n", input);
   }
 
   return EXIT_SUCCESS;
