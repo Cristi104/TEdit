@@ -27,64 +27,91 @@ void enable_raw_mode(){
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-struct dirent* select_file(){
-  write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
+struct dirent* select_file(char* dir){
   struct dirent** filelist;
   struct dirent* file;
   int n;
-  n = scandir(".", &filelist, NULL, alphasort);
-  for(int i = 0; i < n; i++){
-    file = filelist[i];
-    write(STDOUT_FILENO, file->d_name, strlen(file->d_name));
-    write(STDOUT_FILENO, "\r\n", 2);
+  char directory[256];
+  
+  if(dir != NULL){
+    strcpy(directory, dir);
+  }else{
+    getcwd(directory, 256);
   }
-  write(STDOUT_FILENO, "\033[H", 4);
 
-  char input[16];
-  memset(input, 0, 16);
-  while (read(STDIN_FILENO, &input, 15) >= 1 && strcmp(input, "q") != 0) {
-    if(strcmp(input, "\033[A") == 0){
-      write(STDOUT_FILENO, "\033[1A", 5);
-      memset(input, 0, 16);
-      continue;
+  while (1) {
+    n = scandir(directory, &filelist, NULL, alphasort);
+    write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
+    for(int i = 0; i < n; i++){
+      file = filelist[i];
+      printf("%s\r\n", file->d_name);
     }
+    write(STDOUT_FILENO, "\033[H", 4);
 
-    if(strcmp(input, "\033[B") == 0){
-      write(STDOUT_FILENO, "\033[1B", 5);
-      memset(input, 0, 16);
-      continue;
-    }
-
-    if(strcmp(input, "\r") == 0){
-      write(STDOUT_FILENO, "\033[6n", 5);
-      int line, collumn;
-      scanf("\033[%u;%uR",&line, &collumn);
-      if(line - 1 < n){
-        file = malloc(sizeof(struct dirent)); 
-        *file = *filelist[line - 1];
+    char input[16];
+    memset(input, 0, 16);
+    while (read(STDIN_FILENO, &input, 15) >= 1) {
+      if(strcmp(input, "q") == 0){
         free(filelist);
-        write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
-        return file;
+        memset(input, 0, 16);
+        return NULL;
       }
-      memset(input, 0, 16);
-      continue;
+
+      if(strcmp(input, "\033[A") == 0){
+        write(STDOUT_FILENO, "\033[1A", 5);
+        memset(input, 0, 16);
+        continue;
+      }
+
+      if(strcmp(input, "\033[B") == 0){
+        write(STDOUT_FILENO, "\033[1B", 5);
+        memset(input, 0, 16);
+        continue;
+      }
+
+      if(strcmp(input, "\r") == 0){
+        write(STDOUT_FILENO, "\033[6n", 5);
+        int line, collumn;
+        scanf("\033[%u;%uR",&line, &collumn);
+
+        if(line - 1 < n){
+          file = filelist[line - 1];
+
+          if(file->d_type == DT_DIR){
+            strcat(directory, "/");
+            strcat(directory, file->d_name);
+            free(filelist);
+            memset(input, 0, 16);
+            break;
+
+          } else {
+            file = malloc(sizeof(struct dirent)); 
+            *file = *filelist[line - 1];
+            free(filelist);
+            return file;
+          }
+        }
+      }
     }
   }
-  write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
-  free(filelist);
-  return NULL;
 }
 
 int main(int argc, char *argv[])
 {
   enable_raw_mode();
-  struct dirent* file = select_file();
-  write(STDOUT_FILENO, file->d_name, strlen(file->d_name));
-  write(STDOUT_FILENO, "\r\n", 2);
+  struct dirent* file = select_file(NULL);
+  write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
+  if(file != NULL) {
+    printf("%s\r\n", file->d_name);
+  }
 
   char input[16];
   memset(input, 0, 16);
-  while (read(STDIN_FILENO, &input, 15) >= 1 && strcmp(input, "q") != 0) {
+  while (read(STDIN_FILENO, &input, 15) >= 1) {
+    if(strcmp(input, "q") == 0){
+      return EXIT_SUCCESS;
+    }
+
     if(strcmp(input, "a") == 0){
       write(STDOUT_FILENO, "\033[2J\033[3J\033[H", 12);
       memset(input, 0, 16);
